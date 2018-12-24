@@ -274,6 +274,7 @@ public class PayService {
         bill.setPrice(target.getPrice());
         bill.setIntroduce("支付宝支付 " + target.getPrice() + " 元");
         redisService.set(target.getGoodsOrderId(), bill);
+        goodsOrderRepository.save(target);
         return aliPayService.buildRequest(orderInfo, MethodType.POST);
     }
 
@@ -304,7 +305,7 @@ public class PayService {
                                 //判断是否申请退换货 退款
                                 if (target.getBackGoods() == null){
                                     TransferOrder transferOrder = new TransferOrder();
-                                    transferOrder.setPayeeAccount(target.getGoods().getUser().getMobilePhone());
+                                    transferOrder.setPayeeAccount(target.getGoods().getMerchant().getUser().getMobilePhone());
                                     transferOrder.setOutNo(IDUtil.getOrderId());
                                     transferOrder.setAmount(target.getPrice());
                                     transferOrder.setRemark("商铺收入");
@@ -312,11 +313,11 @@ public class PayService {
                                     if (transResult.getAlipay_fund_trans_toaccount_transfer_response().getCode().equals("10000")) {
                                         Bill bill = new Bill();
                                         bill.setType(2);
-                                        bill.setUser(target.getGoods().getUser());
+                                        bill.setUser(target.getGoods().getMerchant().getUser());
                                         bill.setTime(new Date());
                                         bill.setOutTradeNo(transferOrder.getOutNo());
                                         bill.setPrice(transferOrder.getAmount());
-                                        bill.setIntroduce("退款到支付宝账号：" + target.getGoods().getUser().getMobilePhone() + "   " + bill.getPrice() + " 元");
+                                        bill.setIntroduce("退款到支付宝账号：" + target.getGoods().getMerchant().getUser().getMobilePhone() + "   " + bill.getPrice() + " 元");
                                         billRepository.save(bill);
                                     }
                                 }
@@ -435,7 +436,7 @@ public class PayService {
     public void sureOrder(String orderId) {
         GoodsOrder order = goodsOrderRepository.findById(orderId).get();
         TransferOrder transferOrder = new TransferOrder();
-        transferOrder.setPayeeAccount(order.getGoods().getUser().getMobilePhone());
+        transferOrder.setPayeeAccount(order.getGoods().getMerchant().getUser().getMobilePhone());
         transferOrder.setOutNo(IDUtil.getOrderId());
         transferOrder.setAmount(order.getPrice());
         transferOrder.setRemark("退款");
@@ -443,11 +444,11 @@ public class PayService {
         if (transResult.getAlipay_fund_trans_toaccount_transfer_response().getCode().equals("10000")) {
             Bill bill = new Bill();
             bill.setType(3);
-            bill.setUser(order.getGoods().getUser());
+            bill.setUser(order.getGoods().getMerchant().getUser());
             bill.setTime(new Date());
             bill.setOutTradeNo(transferOrder.getOutNo());
             bill.setPrice(transferOrder.getAmount());
-            bill.setIntroduce("退款到支付宝账号：" + order.getGoods().getUser().getMobilePhone() + "   " + bill.getPrice() + " 元");
+            bill.setIntroduce("退款到支付宝账号：" + order.getGoods().getMerchant().getUser().getMobilePhone() + "   " + bill.getPrice() + " 元");
             billRepository.save(bill);
         }
     }

@@ -6,4 +6,5 @@ import org.springframework.data.repository.query.Param;
 
 public interface UserRepository extends JpaRepository<User,Long> {
     User findByMobilePhone(@Param("mobilePhone") String mobilePhone);
+    User findByOpenUser_OpenId(@Param("openId") String openId);
 }

@@ -198,6 +198,12 @@ public class ShiroConfig {
         urls.put("/user/findUserByUserId/*", "authc");
         urls.put("/merchant/addMerchant", "authc");
         urls.put("/messageBack/sendMessageBack", "authc");
+        urls.put("/address/*", "authc");
+        urls.put("/goods/addGoods", "authc");
+        urls.put("/goods/updateGoods", "authc");
+        urls.put("/goods/deleteGoods/*", "authc");
+        urls.put("/order/*", "authc");
+        urls.put("/pay/*", "authc");
         shiro.setFilterChainDefinitionMap(urls);
         return shiro;
     }

@@ -6,11 +6,13 @@ import com.linghong.fkdp.pojo.User;
 import com.linghong.fkdp.repository.MerchantRepository;
 import com.linghong.fkdp.repository.UserRepository;
 import com.linghong.fkdp.utils.FastDfsUtil;
+import com.linghong.fkdp.utils.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import java.util.Date;
 
 /**
@@ -27,7 +29,8 @@ public class MerchantService {
     @Resource
     private UserRepository userRepository;
 
-    public boolean addMerchant(Long userId, Merchant merchant, String base64License) {
+    public boolean addMerchant(Merchant merchant, String base64License, HttpServletRequest request) {
+        Long userId = JwtUtil.getUserId(request);
         Merchant byUser_userId = merchantRepository.findByUser_UserId(userId);
         if (byUser_userId != null){
             return false;

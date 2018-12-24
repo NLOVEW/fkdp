@@ -13,5 +13,5 @@ public interface GoodsOrderRepository extends JpaRepository<GoodsOrder,String> {
                                                                         @Param("status") Integer status);
     List<GoodsOrder> findAllByUser_UserIdAndPickUpOrderByCreateTimeDesc(@Param("userId") Long userId,
                                                                         @Param("pickUp") Integer pickUp);
-    List<GoodsOrder> findAllByGoods_User_UserId(@Param("userId") Long userId);
+    List<GoodsOrder> findAllByGoods_Merchant_User_UserId(@Param("userId") Long userId);
 }

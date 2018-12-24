@@ -128,7 +128,7 @@ public class GoodsOrder {
     }
 
 
-    @OneToOne(cascade = CascadeType.MERGE)
+    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "linkManId")
     public LinkMan getLinkMan() {
         return linkMan;

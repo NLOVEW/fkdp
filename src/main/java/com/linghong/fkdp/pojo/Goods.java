@@ -16,7 +16,7 @@ import java.util.Set;
 @Table(name = "goods")
 public class Goods implements Serializable {
     private String goodsId;
-    private User user;
+    private Merchant merchant;
     private String title;//标题
     private String goodsType;//商品类型
     private BigDecimal originalPrice;//原价
@@ -30,7 +30,7 @@ public class Goods implements Serializable {
     private BigDecimal empressPrice;//运费
     private Date startTime;
     private Date endTime;
-    private Boolean obtained;//是否删除
+    private Boolean obtained;//是否删除 true 删除 false 不删除
     private Date updateTime;//修改时间
     private Date createTime;//创建时间
 
@@ -45,16 +45,16 @@ public class Goods implements Serializable {
     }
 
     @OneToOne(cascade = CascadeType.MERGE)
-    @JoinColumn(name = "userId")
-    public User getUser() {
-        return user;
+    @JoinColumn(name = "merchantId")
+    public Merchant getMerchant() {
+        return merchant;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setMerchant(Merchant merchant) {
+        this.merchant = merchant;
     }
 
-    @OneToMany(cascade = {CascadeType.ALL},fetch = FetchType.EAGER)
+    @OneToMany(cascade = {CascadeType.MERGE,CascadeType.PERSIST,CascadeType.REFRESH},fetch = FetchType.EAGER)
     @JoinColumn(name = "goodsId")
     public Set<Image> getImages() {
         return images;
@@ -188,10 +188,10 @@ public class Goods implements Serializable {
     public String toString() {
         return "Goods{" +
                 "goodsId='" + goodsId + '\'' +
-                ", user=" + user +
+                ", merchant=" + merchant +
                 ", title='" + title + '\'' +
                 ", goodsType='" + goodsType + '\'' +
-                ", OriginalPrice=" + originalPrice +
+                ", originalPrice=" + originalPrice +
                 ", nowPrice=" + nowPrice +
                 ", bigPrice=" + bigPrice +
                 ", smallPrice=" + smallPrice +

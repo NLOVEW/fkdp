@@ -6,11 +6,14 @@ import com.linghong.fkdp.pojo.User;
 import com.linghong.fkdp.repository.MessageBackRepository;
 import com.linghong.fkdp.repository.UserRepository;
 import com.linghong.fkdp.utils.FastDfsUtil;
+import com.linghong.fkdp.utils.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import java.util.Date;
 
 /**
  * @Auther: luck_nhb
@@ -26,12 +29,14 @@ public class MessageBackService {
     @Resource
     private UserRepository userRepository;
 
-    public boolean sendMessageBack(Long userId, MessageBack messageBack, String base64Image) {
+    public boolean sendMessageBack(MessageBack messageBack, String base64Image, HttpServletRequest request) {
+        Long userId = JwtUtil.getUserId(request);
         User user = userRepository.findById(userId).get();
         messageBack.setUser(user);
         if (base64Image != null){
             messageBack.setImagePath(UrlConstant.IMAGE_URL+new FastDfsUtil().uploadBase64Image(base64Image));
         }
+        messageBack.setPushTime(new Date());
         messageBackRepository.save(messageBack);
         return true;
     }

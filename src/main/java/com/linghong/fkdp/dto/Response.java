@@ -1,7 +1,6 @@
 package com.linghong.fkdp.dto;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+
 
 import java.io.Serializable;
 
@@ -10,15 +9,10 @@ import java.io.Serializable;
  *
  * @author luck_nhb
  */
-@ApiModel(value = "返回参数说明")
 public class Response implements Serializable {
-    @ApiModelProperty(value = "成功标识；true：成功；false:失败")
     private Boolean success;     //是否请求成功
-    @ApiModelProperty(value = "返回状态码；200:成功 等信息")
     private Integer code;        //状态码
-    @ApiModelProperty(value = "数据信息")
     private Object data;       //数据
-    @ApiModelProperty(value = "描述信息")
     private String msg;          //提示信息
 
     public Response() {

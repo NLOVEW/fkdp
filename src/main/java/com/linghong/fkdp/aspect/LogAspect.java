@@ -36,7 +36,7 @@ public class LogAspect {
         HttpServletRequest request = attributes.getRequest();
         Claims parameter = JwtUtil.getParameterByHttpServletRequest(request);
         if (parameter != null) {
-            logger.info("{} IP地址:{} 在{}请求 url = {} ", parameter.get("mobilePhone"), IPUtil.getIpAddress(request), DateUtil.date2SimpleDate(new Date()), request.getRequestURL());
+            logger.info("{} IP地址:{} 在{}请求 url = {} ", parameter.get("userId"), IPUtil.getIpAddress(request), DateUtil.date2SimpleDate(new Date()), request.getRequestURL());
             return;
         }
         logger.info("url = {} 在{} 被匿名访问 IP地址:{}", request.getRequestURL(), DateUtil.date2SimpleDate(new Date()),IPUtil.getIpAddress(request));

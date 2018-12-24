@@ -1,9 +1,8 @@
 package com.linghong.fkdp.pojo;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Date;
 
@@ -20,15 +19,18 @@ public class User implements Serializable {
     private String userName; //用户名
     private String nickName; //昵称
     private String mobilePhone;//手机号
+    @JsonIgnore
     private String password;//密码
     private String sign;//签名
     private String avatar;//头像
     private String sex;//性别
     private String address;//住址
+    @JsonIgnore
     private String idCardNumber;//身份证号
+    @JsonIgnore
     private String idCardPath;//身份证照片
     private Boolean auth;//是否被认证
-    private String openId;
+    private OpenUser openUser;
     private Date createTime;
 
     @Id
@@ -113,12 +115,14 @@ public class User implements Serializable {
         this.auth = auth;
     }
 
-    public String getOpenId() {
-        return openId;
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "openUserId")
+    public OpenUser getOpenUser() {
+        return openUser;
     }
 
-    public void setOpenId(String openId) {
-        this.openId = openId;
+    public void setOpenUser(OpenUser openUser) {
+        this.openUser = openUser;
     }
 
     public Date getCreateTime() {
@@ -161,7 +165,7 @@ public class User implements Serializable {
                 ", idCardNumber='" + idCardNumber + '\'' +
                 ", idCardPath='" + idCardPath + '\'' +
                 ", auth=" + auth +
-                ", openId='" + openId + '\'' +
+                ", openUser='" + openUser + '\'' +
                 ", createTime=" + createTime +
                 '}';
     }

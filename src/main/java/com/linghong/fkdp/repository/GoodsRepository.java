@@ -8,5 +8,5 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface GoodsRepository extends JpaRepository<Goods,String>, JpaSpecificationExecutor<Goods> {
-    List<Goods> findAllByUser_UserId(@Param("userId") Long userId);
+    List<Goods> findAllByMerchant_User_UserId(@Param("userId") Long userId);
 }

@@ -6,13 +6,14 @@ import com.linghong.fkdp.service.AddressService;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 /**
  * @Auther: luck_nhb
  * @Date: 2018/11/29 11:04
  * @Version 1.0
- * @Description:
+ * @Description:  收货地址
  */
 @RestController
 public class AddressController {
@@ -21,15 +22,15 @@ public class AddressController {
     // fixme 切记收货地址不可修改  只可删除  添加
     /**
      * 用户添加收货地址
-     * 参数  当前用户userId  receiver 收货人  receiverPhone 收货人手机号
+     * 参数  receiver 收货人  receiverPhone 收货人手机号
      *                      expressAddress 快递目的地址
-     * @param userId
+     * @param request
      * @param address
      * @return
      */
     @PostMapping("/address/addAddress")
-    public Response addAddress(Long userId, Address address){
-        boolean flag = addressService.addAddress(userId,address);
+    public Response addAddress(Address address, HttpServletRequest request){
+        boolean flag = addressService.addAddress(address,request);
         if (flag){
             return new Response(true,200 ,null ,"添加成功" );
         }
@@ -47,6 +48,11 @@ public class AddressController {
         return new Response(true,200 ,addresses ,"地址列表" );
     }
 
+    /**
+     * 根据收货地址Id  获取此收货地址的详细信息
+      * @param addressId
+     * @return
+     */
     @GetMapping("/address/findAddressByAddressId/{addressId}")
     public Response findAddressByAddressId(@PathVariable Long addressId){
         Address address = addressService.findAddressByAddressId(addressId);

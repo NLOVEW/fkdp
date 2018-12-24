@@ -5,6 +5,7 @@ import com.linghong.fkdp.pojo.*;
 import com.linghong.fkdp.repository.*;
 import com.linghong.fkdp.utils.FastDfsUtil;
 import com.linghong.fkdp.utils.IDUtil;
+import com.linghong.fkdp.utils.JwtUtil;
 import com.linghong.fkdp.utils.SomeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -51,7 +53,8 @@ public class GoodsOrderService {
     @Value("${mq.pay.sure.routeKey}")
     private String sureRouteKey;
 
-    public GoodsOrder pushGoodsOrder(Long userId, GoodsOrder goodsOrder) {
+    public GoodsOrder pushGoodsOrder(GoodsOrder goodsOrder, HttpServletRequest request) {
+        Long userId = JwtUtil.getUserId(request);
         User user = userRepository.findById(userId).get();
         if (!user.getAuth()) {
             return null;
@@ -85,14 +88,19 @@ public class GoodsOrderService {
     }
 
     public List<GoodsOrder> getOrderByStatus(Long userId, Integer status) {
-        List<GoodsOrder> orders = goodsOrderRepository.findAllByUser_UserIdAndStatusOrderByCreateTimeDesc(userId, status);
-        orders = orders.stream().filter(order -> {
-            if (order.getPickUp().equals(1) && order.getBackGoods() == null) {
-                return true;
-            }
-            return false;
-        }).collect(Collectors.toList());
-        return orders;
+        try {
+            List<GoodsOrder> orders = goodsOrderRepository.findAllByUser_UserIdAndStatusOrderByCreateTimeDesc(userId, status);
+            orders = orders.stream().filter(order -> {
+                if (order.getPickUp().equals(1) && order.getBackGoods() == null) {
+                    return true;
+                }
+                return false;
+            }).collect(Collectors.toList());
+            return orders;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public Map<String, Object> getOrderByPickUp(Long userId) {
@@ -135,22 +143,25 @@ public class GoodsOrderService {
                                   BackGoods backGoods) {
         GoodsOrder goodsOrder = goodsOrderRepository.findById(goodsOrderId).get();
         backGoods.setCreateTime(new Date());
-        String[] split = base64Images.split("。");
-        Set<Image> images = new HashSet<>();
-        for (String base64 : split) {
-            Image image = new Image();
-            image.setCreateTime(new Date());
-            image.setImagePath(UrlConstant.IMAGE_URL + new FastDfsUtil().uploadBase64Image(base64));
-            images.add(image);
+        if (base64Images != null){
+            Set<Image> images = new HashSet<>();
+            String[] split = base64Images.split("。");
+            for (String base64 : split) {
+                Image image = new Image();
+                image.setCreateTime(new Date());
+                image.setImagePath(UrlConstant.IMAGE_URL + new FastDfsUtil().uploadBase64Image(base64));
+                images.add(image);
+            }
+            backGoods.setImages(images);
         }
-        backGoods.setImages(images);
         backGoods.setBackStatus(0);
         goodsOrder.setBackGoods(backGoods);
+        goodsOrderRepository.save(goodsOrder);
         return true;
     }
 
     public List<GoodsOrder> getApplyBackOrderBySeller(Long userId) {
-        List<GoodsOrder> goodsOrders = goodsOrderRepository.findAllByGoods_User_UserId(userId);
+        List<GoodsOrder> goodsOrders = goodsOrderRepository.findAllByGoods_Merchant_User_UserId(userId);
         List<GoodsOrder> orders = goodsOrders.stream().filter(order -> {
             if (order.getBackGoods() != null && order.getBackGoods().getBackStatus().equals(0)) {
                 return true;
@@ -214,10 +225,14 @@ public class GoodsOrderService {
 
     public boolean sendGoods(String goodsOrderId, String expressNumber, String expressType) {
         GoodsOrder goodsOrder = goodsOrderRepository.findById(goodsOrderId).get();
-        GoodsExpress goodsExpress = goodsOrder.getGoodsExpress();
-        goodsExpress.setExpressType(expressType);
-        goodsExpress.setExpressNumber(expressNumber);
-        goodsOrder.setGoodsExpress(goodsExpress);
+        if (expressNumber != null && expressType != null){
+            GoodsExpress goodsExpress = new GoodsExpress();
+            goodsExpress.setExpressType(expressType);
+            goodsExpress.setExpressNumber(expressNumber);
+            goodsOrder.setGoodsExpress(goodsExpress);
+        }
+        goodsOrder.setStatus(2);
+        goodsOrderRepository.save(goodsOrder);
         return true;
     }
 }

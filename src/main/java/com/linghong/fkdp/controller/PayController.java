@@ -164,6 +164,7 @@ public class PayController {
         return payService.wxPay(goodsOrder, addressId,  request);
     }
 
+    @RequestMapping("/pay/wxPayCallBack")
     public Response wxPayCallBack(HttpServletRequest request) {
         boolean flag = payService.wxPayCallBack(request);
         if (flag) {

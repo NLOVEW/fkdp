@@ -6,6 +6,7 @@ import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.shiro.authz.UnauthenticatedException;
 
 import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.http.HttpServletRequest;
@@ -43,7 +44,7 @@ public class JwtUtil {
      * @return
      * @throws Exception
      */
-    public static String createJWT(Map<String, Object> claims) {
+    public static synchronized String createJWT(Map<String, Object> claims) {
         // 指定签名的时候使用的签名算法，也就是header那部分
         SignatureAlgorithm sha256 = SignatureAlgorithm.HS256;
         // 生成JWT的时间
@@ -78,7 +79,7 @@ public class JwtUtil {
      * @return
      * @throws Exception
      */
-    public static Claims parseJWT(String jwt) {
+    public static synchronized Claims parseJWT(String jwt) {
         Key key = generalKey();  //签名秘钥，和生成的签名的秘钥一模一样
         Claims claims = Jwts.parser()  //得到DefaultJwtParser
                 .setSigningKey(key)                 //设置签名的秘钥
@@ -87,13 +88,33 @@ public class JwtUtil {
         return claims;
     }
 
-    public static Claims getParameterByHttpServletRequest(HttpServletRequest request){
+    public static synchronized Claims getParameterByHttpServletRequest(HttpServletRequest request){
         try {
             //指定前端使用jwt 在header中设置的参数为 Authorization
             String auth = request.getHeader("token");
             if (StringUtils.isNotEmpty(auth)) {
                 Claims claims = JwtUtil.parseJWT(auth);
                 return claims;
+            }else {
+                throw new NullPointerException("HTTP header 中token为空");
+            }
+        }catch (Exception e){
+            return null;
+        }
+
+    }
+
+    public static synchronized Long getUserId(HttpServletRequest request){
+        try {
+            //指定前端使用jwt 在header中设置的参数为 Authorization
+            String auth = request.getHeader("token");
+            if (StringUtils.isNotEmpty(auth)) {
+                Claims claims = JwtUtil.parseJWT(auth);
+                Long userId = Long.valueOf(((Integer) claims.get("userId")).longValue());
+                if (userId == null){
+                    throw new UnauthenticatedException();
+                }
+                return userId;
             }else {
                 throw new NullPointerException("HTTP header 中token为空");
             }

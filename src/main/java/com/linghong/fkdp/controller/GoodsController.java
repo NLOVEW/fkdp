@@ -6,6 +6,7 @@ import com.linghong.fkdp.service.GoodsService;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
@@ -22,19 +23,19 @@ public class GoodsController {
 
     /**
      * 添加商品
-     * 参数 ： userId title goodsType originalPrice number(传入时需限定数量最大100)
+     * 参数 ： title goodsType originalPrice number(传入时需限定数量最大100)
      *          empressPrice introduce startTime  endTime downPrice
      *          base64Images(图片以中文。为分隔符)
-     * @param userId
+     * @param request
      * @param goods
      * @param base64Images
      * @return
      */
     @PostMapping("/goods/addGoods")
-    public Response addGoods(Long userId,
-                             Goods goods,
-                             String base64Images){
-        boolean flag = goodsService.addGoods(userId,goods,base64Images);
+    public Response addGoods(Goods goods,
+                             String base64Images,
+                             HttpServletRequest request){
+        boolean flag = goodsService.addGoods(goods,base64Images,request);
         if (flag){
             return new Response(true,200 ,null ,"添加成功" );
         }
@@ -42,7 +43,7 @@ public class GoodsController {
     }
 
     /**
-     * //fixme 更新商品信息  竞拍开始时间  ☆☆ 结束时间不允许修改 ☆☆
+     * //fixme 更新商品信息    ☆☆ 竞拍开始时间 结束时间不允许修改 ☆☆
      * 参数 ： goodsId title goodsType originalPrice number empressPrice introduce
      *         startTime  endTime downPrice base64Images(图片以中文。为分隔符)
      * @param goods
@@ -78,9 +79,9 @@ public class GoodsController {
      * @param goodsId
      * @return
      */
-    @GetMapping("/goods/findGoodsByGoogsId/{goodsId}")
-    public Response findGoodsByGoogsId(@PathVariable String goodsId){
-        Goods goods = goodsService.findGoodsByGoogsId(goodsId);
+    @GetMapping("/goods/findGoodsByGoodsId/{goodsId}")
+    public Response findGoodsByGoodsId(@PathVariable String goodsId){
+        Goods goods = goodsService.findGoodsByGoodsId(goodsId);
         return new Response(true,200 ,goods ,"查询结果" );
     }
 
@@ -108,7 +109,7 @@ public class GoodsController {
     /**
      *  首页竞拍首页数据
      *  倒计时：需要前端根据开始时间自己判断进行倒计时显示
-     *  此页面信息需要20s请求一次
+         *  此页面信息需要20s请求一次
      * @return
      */
     @GetMapping("/goods/getAuctionIndex/{goodsId}")

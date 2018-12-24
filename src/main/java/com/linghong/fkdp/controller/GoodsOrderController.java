@@ -8,6 +8,7 @@ import com.linghong.fkdp.service.GoodsOrderService;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
@@ -28,17 +29,16 @@ public class GoodsOrderController {
     /**
      * 用户下单 当用户点击拍下时 首先其请求此路径  然后返回订单信息
      * <p>
-     * 参数： 当前用户userId  goods.goodsId
+     * 参数： goods.goodsId
      * price(拍下时的价钱+运费价钱)
      *
-     * @param userId
+     * @param request
      * @param goodsOrder
      * @return
      */
     @PostMapping("/order/pushGoodsOrder")
-    public Response pushGoodsOrder(Long userId,
-                                   GoodsOrder goodsOrder) {
-        goodsOrder = goodsOrderService.pushGoodsOrder(userId, goodsOrder);
+    public Response pushGoodsOrder(GoodsOrder goodsOrder, HttpServletRequest request) {
+        goodsOrder = goodsOrderService.pushGoodsOrder(goodsOrder,request);
         if (goodsOrder != null) {
             return new Response(true, 200, goodsOrder, "成功下单");
         }
@@ -77,8 +77,8 @@ public class GoodsOrderController {
      * @param orderId
      * @return
      */
-    @GetMapping("/order/surePickUp/{orderId}")
-    public Response surePickUp(@PathVariable String orderId) {
+    @PostMapping("/order/surePickUp")
+    public Response surePickUp(String orderId) {
         boolean flag = goodsOrderService.surePickUp(orderId);
         if (flag) {
             return new Response(true, 200, null, "操作成功");
@@ -130,7 +130,7 @@ public class GoodsOrderController {
      * @param userId
      * @return
      */
-    @GetMapping("/order/getAllCompleteOrder")
+    @GetMapping("/order/getAllCompleteOrder/{userId}")
     public Response getAllCompleteOrder(@PathVariable Long userId) {
         List<GoodsOrder> goodsOrders = goodsOrderService.getAllCompleteOrder(userId);
         return new Response(true, 200, goodsOrders, "检索结果");
