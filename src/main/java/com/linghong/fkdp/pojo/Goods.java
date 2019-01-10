@@ -27,6 +27,7 @@ public class Goods implements Serializable {
     private Integer number;//数量
     private String introduce;//简介
     private Set<Image> images;
+    private Set<GoodsImage> goodsImages;
     private BigDecimal empressPrice;//运费
     private Date startTime;
     private Date endTime;
@@ -62,6 +63,16 @@ public class Goods implements Serializable {
 
     public void setImages(Set<Image> images) {
         this.images = images;
+    }
+
+    @OneToMany(cascade = CascadeType.ALL,fetch = FetchType.EAGER)
+    @JoinColumn(name = "goodsId")
+    public Set<GoodsImage> getGoodsImages() {
+        return goodsImages;
+    }
+
+    public void setGoodsImages(Set<GoodsImage> goodsImages) {
+        this.goodsImages = goodsImages;
     }
 
     public String getTitle() {

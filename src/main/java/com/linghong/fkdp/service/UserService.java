@@ -1,12 +1,12 @@
 package com.linghong.fkdp.service;
 
 import com.linghong.fkdp.constant.UrlConstant;
+import com.linghong.fkdp.pojo.ImUser;
 import com.linghong.fkdp.pojo.User;
 import com.linghong.fkdp.pojo.Wallet;
 import com.linghong.fkdp.repository.UserRepository;
 import com.linghong.fkdp.repository.WalletRepository;
 import com.linghong.fkdp.utils.*;
-import io.jsonwebtoken.Claims;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.crypto.hash.SimpleHash;
@@ -34,6 +34,8 @@ public class UserService {
     private UserRepository userRepository;
     @Resource
     private WalletRepository walletRepository;
+    @Resource(name = "imUserServiceImpl")
+    private ImUserService imUserService;
 
     public User register(User user) {
         User secondUser = userRepository.findByMobilePhone(user.getMobilePhone());
@@ -43,10 +45,20 @@ public class UserService {
 			UsernamePasswordToken token = new UsernamePasswordToken(user.getMobilePhone(), user.getPassword());
             String md5 = new SimpleHash("MD5", user.getPassword(), salt, 2).toHex();
             user.setPassword(md5);
-            user.setAuth(false);
+            user.setAuth(true);
             user.setCreateTime(new Date());
             user = userRepository.save(user);
-			Wallet wallet = new Wallet();
+            //注册即时通信
+            try {
+                ImUser imUser = new ImUser();
+                imUser.setUserMobilePhone(user.getMobilePhone());
+                imUserService.addImUser(imUser);
+            } catch (Exception e) {
+                e.printStackTrace();
+                logger.error("即时通信注册出错");
+            }
+
+            Wallet wallet = new Wallet();
             wallet.setUser(user);
             wallet.setCreateTime(new Date());
             wallet.setWalletId(IDUtil.getId());
@@ -88,10 +100,18 @@ public class UserService {
         User user = userRepository.findById(userId).get();
         user.setAvatar(UrlConstant.IMAGE_URL+new FastDfsUtil().uploadBase64Image(base64Avatar));
         userRepository.save(user);
+        try {
+            ImUser imUser = imUserService.findImUserMessageByMobilePhone(user.getMobilePhone());
+            imUser.setAvatar(user.getAvatar());
+            imUserService.updateById(imUser);
+        }catch (Exception e){
+            logger.error("即时通信头像更新出错");
+        }
         return user;
     }
 
     public boolean updatePassword(String mobilePhone,String password) {
+        logger.info("手机号：{}", mobilePhone);
         User user = userRepository.findByMobilePhone(mobilePhone);
         ByteSource salt = ByteSource.Util.bytes(user.getMobilePhone());
         String md5 = new SimpleHash("MD5", password, salt, 2).toHex();
@@ -118,8 +138,7 @@ public class UserService {
     }
 
     public User getCurrentUserMessage(HttpServletRequest request) {
-        Claims parameter = JwtUtil.getParameterByHttpServletRequest(request);
-        Long userId = (Long) parameter.get("userId");
+        Long userId = JwtUtil.getUserId(request);
         User user = userRepository.findById(userId).get();
         return user;
     }

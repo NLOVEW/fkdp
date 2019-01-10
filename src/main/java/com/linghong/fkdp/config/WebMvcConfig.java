@@ -47,6 +47,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         List<String> urls = new ArrayList<>();
         urls.add("/*");
         filterRegistrationBean.setUrlPatterns(urls);
+        filterRegistrationBean.setOrder(0);
         return filterRegistrationBean;
     }
 

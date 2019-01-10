@@ -74,7 +74,7 @@
     <root>
         <level value="INFO" />
         <appender-ref ref="stdout" />
-        <!--<appender-ref ref="file" />-->
+        <appender-ref ref="file" />
     </root>
 
     <!-- 用来设置某一个 包 或者具体的某一个 类 的日志打印级别、以及指定<appender>,

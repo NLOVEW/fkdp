@@ -33,8 +33,9 @@ public class MessageBackService {
         Long userId = JwtUtil.getUserId(request);
         User user = userRepository.findById(userId).get();
         messageBack.setUser(user);
-        if (base64Image != null){
-            messageBack.setImagePath(UrlConstant.IMAGE_URL+new FastDfsUtil().uploadBase64Image(base64Image));
+        if (base64Image != null) {
+            String[] split = base64Image.split("。");
+            messageBack.setImagePath(UrlConstant.IMAGE_URL + new FastDfsUtil().uploadBase64Image(split[0]));
         }
         messageBack.setPushTime(new Date());
         messageBackRepository.save(messageBack);

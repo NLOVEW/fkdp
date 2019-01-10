@@ -9,7 +9,7 @@ import com.linghong.fkdp.utils.JwtUtil;
 import com.linghong.fkdp.utils.SomeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -40,7 +40,7 @@ public class GoodsOrderService {
     @Resource
     private BackGoodsRepository backGoodsRepository;
     @Resource
-    private AmqpTemplate amqpTemplate;
+    private RabbitTemplate rabbitTemplate;
 
     @Value("${mq.pay.exchange}")
     private String exchange;
@@ -183,6 +183,9 @@ public class GoodsOrderService {
                 .collect(Collectors.groupingBy((order) -> {
                     return order.getBackGoods().getBackStatus();
                 }));
+        result.forEach((key,value)->{
+            logger.info("退换货订单：{}",value);
+        });
         return result;
     }
 
@@ -195,7 +198,7 @@ public class GoodsOrderService {
                 order.getBackGoods().setBackStatus(status);
             } else {
                 //处理方法 com.linghong.fkdp.service.PayService.backOrderTransfer
-                amqpTemplate.convertAndSend(exchange, backRouteKey, orderId);
+                rabbitTemplate.convertAndSend(exchange, backRouteKey, orderId);
             }
         }
         order.getBackGoods().setBackStatus(status);
@@ -208,7 +211,7 @@ public class GoodsOrderService {
      * @see com.linghong.fkdp.service.PayService#sureOrder(java.lang.String)
      */
     public boolean surePickUp(String orderId) {
-        amqpTemplate.convertAndSend(exchange, sureRouteKey, orderId);
+        rabbitTemplate.convertAndSend(exchange, sureRouteKey, orderId);
         return true;
     }
 

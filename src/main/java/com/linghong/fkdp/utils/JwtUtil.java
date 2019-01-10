@@ -91,12 +91,12 @@ public class JwtUtil {
     public static synchronized Claims getParameterByHttpServletRequest(HttpServletRequest request){
         try {
             //指定前端使用jwt 在header中设置的参数为 Authorization
-            String auth = request.getHeader("token");
+            String auth = request.getHeader("Authorization");
             if (StringUtils.isNotEmpty(auth)) {
                 Claims claims = JwtUtil.parseJWT(auth);
                 return claims;
             }else {
-                throw new NullPointerException("HTTP header 中token为空");
+                throw new NullPointerException("HTTP header 中Authorization为空");
             }
         }catch (Exception e){
             return null;
@@ -107,7 +107,7 @@ public class JwtUtil {
     public static synchronized Long getUserId(HttpServletRequest request){
         try {
             //指定前端使用jwt 在header中设置的参数为 Authorization
-            String auth = request.getHeader("token");
+            String auth = request.getHeader("Authorization");
             if (StringUtils.isNotEmpty(auth)) {
                 Claims claims = JwtUtil.parseJWT(auth);
                 Long userId = Long.valueOf(((Integer) claims.get("userId")).longValue());
@@ -116,7 +116,7 @@ public class JwtUtil {
                 }
                 return userId;
             }else {
-                throw new NullPointerException("HTTP header 中token为空");
+                throw new NullPointerException("HTTP header 中Authorization为空");
             }
         }catch (Exception e){
             return null;

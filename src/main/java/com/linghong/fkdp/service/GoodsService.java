@@ -7,20 +7,21 @@ import com.linghong.fkdp.utils.BeanUtil;
 import com.linghong.fkdp.utils.FastDfsUtil;
 import com.linghong.fkdp.utils.IDUtil;
 import com.linghong.fkdp.utils.JwtUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.ExchangeTypes;
-import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.*;
 import org.springframework.amqp.rabbit.annotation.Queue;
-import org.springframework.amqp.rabbit.annotation.QueueBinding;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import javax.persistence.criteria.Predicate;
 import javax.servlet.http.HttpServletRequest;
+import java.math.BigDecimal;
 import java.net.URLDecoder;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -51,6 +52,8 @@ public class GoodsService {
     private MerchantRepository merchantRepository;
     @Resource
     private ImageRepository imageRepository;
+    @Resource
+    private GoodsImageRepository goodsImageRepository;
 
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(value = "${mq.pay.error.queue}", autoDelete = "false"),
@@ -58,12 +61,14 @@ public class GoodsService {
             key = "${mq.pay.error.routeKey}"
     ))
     public void dealErrorOrder(String goodsOrderId) {
+        logger.info("rabbitMQ：dealErrorOrder 处理");
         GoodsOrder goodsOrder = goodsOrderRepository.findById(goodsOrderId).get();
         Goods goods = goodsOrder.getGoods();
         goods.setNumber(goods.getNumber().intValue() + 1);
+        logger.info("rabbitMQ：dealErrorOrder 处理结束");
     }
 
-    public boolean addGoods(Goods goods, String base64Images, HttpServletRequest request) {
+    public boolean addGoods(Goods goods, String base64Images,String goodsImagesBase64, HttpServletRequest request) {
         Long userId = JwtUtil.getUserId(request);
         Merchant merchant = merchantRepository.findByUser_UserId(userId);
         if (!merchant.getAuth()) {
@@ -74,13 +79,23 @@ public class GoodsService {
         String[] split = base64Images.split("。");
         Set<Image> images = new HashSet<>();
         for (String base64 : split) {
+            logger.info("商品图片：{}", base64);
             Image image = new Image();
             image.setCreateTime(new Date());
             image.setImagePath(UrlConstant.IMAGE_URL + new FastDfsUtil().uploadBase64Image(base64));
             images.add(image);
         }
+        Set<GoodsImage> goodsImages = new HashSet<>();
+        String[] split1 = goodsImagesBase64.split("。");
+        for (String base64 : split1) {
+            logger.info("商品详情图片：{}", base64);
+            GoodsImage image = new GoodsImage();
+            image.setPath(UrlConstant.IMAGE_URL + new FastDfsUtil().uploadBase64Image(base64));
+            goodsImages.add(image);
+        }
         goods.setNowPrice(goods.getOriginalPrice());
         goods.setImages(images);
+        goods.setGoodsImages(goodsImages);
         goods.setCreateTime(new Date());
         goods.setObtained(false);
         goodsRepository.save(goods);
@@ -94,8 +109,9 @@ public class GoodsService {
                 //在开始时间  以20S减价一次
                 Goods target = goodsRepository.findById(id).get();
                 //到达结束竞拍时间  停止任务
-                if (target.getEndTime().compareTo(new Date(System.currentTimeMillis())) <= 0 || target.getUpdateTime() != null || target.getObtained()) {
+                if (target.getEndTime().compareTo(new Date(System.currentTimeMillis())) <= 0 || target.getUpdateTime() != null || target.getObtained() || target.getNowPrice().compareTo(new BigDecimal(0)) <= 0) {
                     target.setUpdateTime(null);
+                    target.setObtained(true);
                     goodsRepository.save(target);
                     this.cancel();
                 }
@@ -108,21 +124,38 @@ public class GoodsService {
         return true;
     }
 
-    public boolean updateGoods(Goods goods, String base64Images) {
+    public boolean updateGoods(Goods goods, String base64Images,String goodsImagesBase64) {
         Goods target = goodsRepository.findById(goods.getGoodsId()).get();
-        Set<Image> images = target.getImages();
-        imageRepository.deleteAll(images);
-        images = new HashSet<>();
-        String[] split = base64Images.split("。");
-        for (String base64 : split) {
-            Image image = new Image();
-            image.setCreateTime(new Date());
-            image.setImagePath(UrlConstant.IMAGE_URL + new FastDfsUtil().uploadBase64Image(base64));
-            images.add(image);
+        if(StringUtils.isNotEmpty(base64Images)){
+            Set<Image> images = target.getImages();
+            imageRepository.deleteAll(images);
+            images = new HashSet<>();
+            String[] split = base64Images.split("。");
+            for (String base64 : split) {
+                logger.info("商品图片：{}",base64 );
+                Image image = new Image();
+                image.setCreateTime(new Date());
+                image.setImagePath(UrlConstant.IMAGE_URL + new FastDfsUtil().uploadBase64Image(base64));
+                images.add(image);
+            }
+            target.setImages(images);
         }
-        target.setImages(images);
+        if(StringUtils.isNotEmpty(goodsImagesBase64)){
+            Set<GoodsImage> images = target.getGoodsImages();
+            goodsImageRepository.deleteAll(images);
+            images = new HashSet<>();
+            String[] split = goodsImagesBase64.split("。");
+            for (String base64 : split) {
+                logger.info("商品详情图片：{}",base64 );
+                GoodsImage image = new GoodsImage();
+                image.setPath(UrlConstant.IMAGE_URL + new FastDfsUtil().uploadBase64Image(base64));
+                images.add(image);
+            }
+            target.setGoodsImages(images);
+        }
+
         //开始时间和新的结束时间相比较
-        if (goods.getStartTime().compareTo(target.getStartTime()) != 0){
+        /**if (goods.getStartTime().compareTo(target.getStartTime()) != 0){
             target.setUpdateTime(new Date());
             //开启任务线程
             Timer timer = new Timer();
@@ -136,6 +169,7 @@ public class GoodsService {
                     //到达结束竞拍时间  停止任务
                     if (target.getEndTime().compareTo(new Date(System.currentTimeMillis())) <= 0 || target.getUpdateTime() != null || target.getObtained()) {
                         target.setUpdateTime(null);
+                        target.setObtained(true);
                         goodsRepository.save(target);
                         this.cancel();
                     }
@@ -145,12 +179,13 @@ public class GoodsService {
                     }
                 }
             }, goods.getStartTime(), 20 * 1000);
-        }
+        }*/
         if (goods.getOriginalPrice().compareTo(target.getOriginalPrice()) != 0){
             target.setNowPrice(goods.getOriginalPrice());
         }
         BeanUtil.copyPropertiesIgnoreNull(goods, target);
         goodsRepository.save(target);
+
         return true;
     }
 
@@ -273,7 +308,8 @@ public class GoodsService {
             Specification<Goods> specification = (root, query, builder) -> {
                 Predicate title = builder.like(root.get("title").as(String.class), "%" + decodeKey + "%");
                 Predicate introduce = builder.like(root.get("introduce").as(String.class), "%" + decodeKey + "%");
-                return builder.or(title, introduce);
+                Predicate goodsType = builder.like(root.get("goodsType").as(String.class), "%" + decodeKey + "%");
+                return builder.or(title, introduce,goodsType);
             };
             List<Goods> goods = goodsRepository.findAll(specification)
                     .stream()
@@ -289,5 +325,16 @@ public class GoodsService {
             logger.error("解码失败");
         }
         return null;
+    }
+
+    @Scheduled(cron = "0 */5 * * * ? ")
+    public void dealGoodsTime() {
+        logger.info("启动定时清理过期数据");
+        List<Goods> goods = goodsRepository.findAll();
+        for (Goods goods1 : goods){
+            if (goods1.getEndTime().compareTo(new Date()) <= 0 || goods1.getNumber().intValue() <= 0){
+                goods1.setObtained(true);
+            }
+        }
     }
 }

@@ -30,13 +30,18 @@ public class ShiroLoginFilter extends FormAuthenticationFilter {
     protected boolean onAccessDenied(ServletRequest servletRequest, ServletResponse servletResponse) {
         logger.info("jwt认证---------------");
         HttpServletRequest request = (HttpServletRequest) servletRequest;
+        HttpServletResponse response = (HttpServletResponse) servletResponse;
+//        response.setHeader("Access-Control-Allow-Origin", "*");
+//        response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE");
+//        response.setHeader("Access-Control-Max-Age", "3600");
+//        response.setHeader("Access-Control-Allow-Headers", "*");
+//        response.setHeader("Access-Control-Allow-Credentials", "true"); //是否支持cookie跨域
         Claims parameters = JwtUtil.getParameterByHttpServletRequest(request);
         if (parameters != null) {
             //TODO 判断token过期 -----算了吧  还需要更新操作
-            logger.info("token验证通过");
+            logger.info("token验证通过:{}",JwtUtil.getUserId(request));
             return true;
         } else {
-            HttpServletResponse response = (HttpServletResponse) servletResponse;
             Response result = new Response();
             result.set(false, 707, null, "请先登录");
             try {

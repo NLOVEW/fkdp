@@ -67,6 +67,10 @@ public class IDUtil {
         return ss;
     }
 
+    public static String getImId(){
+        return String.valueOf(System.currentTimeMillis());
+    }
+
     public static void main(String[] nhb) throws Exception {
 
     }

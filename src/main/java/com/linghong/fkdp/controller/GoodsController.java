@@ -26,6 +26,7 @@ public class GoodsController {
      * 参数 ： title goodsType originalPrice number(传入时需限定数量最大100)
      *          empressPrice introduce startTime  endTime downPrice
      *          base64Images(图片以中文。为分隔符)
+     *          goodsImagesBase64 商品详情中的照片
      * @param request
      * @param goods
      * @param base64Images
@@ -34,8 +35,9 @@ public class GoodsController {
     @PostMapping("/goods/addGoods")
     public Response addGoods(Goods goods,
                              String base64Images,
+                             String goodsImagesBase64,
                              HttpServletRequest request){
-        boolean flag = goodsService.addGoods(goods,base64Images,request);
+        boolean flag = goodsService.addGoods(goods,base64Images,goodsImagesBase64,request);
         if (flag){
             return new Response(true,200 ,null ,"添加成功" );
         }
@@ -52,8 +54,9 @@ public class GoodsController {
      */
     @PostMapping("/goods/updateGoods")
     public Response updateGoods(Goods goods,
-                                @RequestParam(required = false) String base64Images){
-        boolean flag = goodsService.updateGoods(goods,base64Images);
+                                @RequestParam(required = false) String base64Images,
+                                @RequestParam(required = false) String goodsImagesBase64){
+        boolean flag = goodsService.updateGoods(goods,base64Images,goodsImagesBase64);
         if (flag){
             return new Response(true,200 ,null ,"更新成功" );
         }
@@ -165,7 +168,7 @@ public class GoodsController {
      * @param key
      * @return
      */
-    @GetMapping("/goods/findByCityAndKey/{key}")
+    @GetMapping("/goods/findByKey/{key}")
     public Response findByKey(@PathVariable String key){
         List<Goods> goods = goodsService.findByKey(key);
         return new Response(true,200 ,goods ,"检索信息" );

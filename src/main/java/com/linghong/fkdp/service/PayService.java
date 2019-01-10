@@ -19,12 +19,12 @@ import com.nhb.pay.wxpay.WxPayService;
 import com.nhb.pay.wxpay.WxTransactionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.transaction.Transactional;
 import java.math.BigDecimal;
 import java.util.*;
 
@@ -42,6 +43,7 @@ import java.util.*;
  * @Description:
  */
 @Service
+@Transactional(rollbackOn = Exception.class)
 @Scope("prototype")
 public class PayService {
     private Logger logger = LoggerFactory.getLogger(getClass());
@@ -66,11 +68,9 @@ public class PayService {
     @Resource
     private AddressRepository addressRepository;
     @Resource
-    private AmqpTemplate amqpTemplate;
+    private RabbitTemplate rabbitTemplate;
     @Resource
     private LinkManRepository linkManRepository;
-
-    private Timer timer;
 
     @Value("${mq.pay.exchange}")
     private String exchange;
@@ -85,17 +85,45 @@ public class PayService {
     @PostConstruct
     public void init() {
         //todo 上线时 修改所有信息 支付宝配置文件-----------------------------------
-        aliPayConfig.setPid("2088102175938099");
-        aliPayConfig.setAppId("2016091600527218");
-        aliPayConfig.setKeyPublic("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArp1iacBfaj6BopBsp7HesXIcX4CRrkFIRcayABGcaa3rTITBJlTRwdRU0osw2lcLGELrCcuxQ/NlqEA65iIBxbWoToM5TCgKUIjR3tDVRxoEGLCcxRdQjD90OAD5McqlXEfZtBQXbn57Ao6hr5AvLy+d8dEDnkclu3ASojqkOeoA6jqscNonfaY+w19yGBdovb1xwv+9E1bPj888T8OgZsJB/rRRKME/DdoH5q44F8uDnQFdkGlP5OU8+OmYzgJORvdZW1CSRchThI6uP2KXqatU3DhehHrxIwd20J//H1FtSCbxFmyHtjWakVZtOJsSsbzX+gttz56Ww2/qH1jFLQIDAQAB");
-        aliPayConfig.setKeyPrivate("MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCSUM9YjT3D9CKxRI3YBCNzz8CqLL5T753dPKyMT6136o5o9sLTVUmc2y5+Umrh/heCSwKbmkwnaVQ1XMMnLE8al4hl3zE7DwWvBkOUE5gdR3KRz1TwWo6FQ/FANQSH+ymbO7nlTurfrGfeDnamBf8i3EXQfVjpRLT/gVOyZ1mfi44hdwX02LH0eGvqpPrSpgXi7mbiUazERDwBJVWhQKts1lGhE7MMWdU9yyQWD5gAMkTmsDtqEnWrguP7ebzuyqNSadw4wi1wONp/nba7a1CHnqDA6uIU4t5DqwS0IQHX00Wt+1lsEaru7RqQQoBQTGi8sat/G4GjYhZgKeXmz06hAgMBAAECggEATjM4jrh2gYuzGxFryj9z/0rTS2C8nLndosfx5NAVA5luYbU5LaBQxq/yqns8OusF/5I9o5KVDx9hbV/VwdMRuEGzGddvRYRi4kezyKmsTEHKfxnT6N5Ne/ZzM4DimhboBtqmIWPLbp6DqRAL4/Iiiaw2+BZ2db5OCp1BcYGBSh6KdhQrDccCHTaq0nKmaGj42xunSmz5Ij42gYfIdllAmsxb5cQB4K7t1VtuFlcKFxC5APn7OcbRR6Q9JMzP8BZL3qt3otccz3gQ2eLCHaJIv3yhjJ4YIWMcxPh1VycCPaJLHwKdK9sfL3Aa7q4KUj4wnEweFHdQve2GNxT+JKSHDQKBgQDGp7029tzqWAOnh3gN/zAHIFpxbRA35BiEwZOlQgv8loj78K30OmGQx9c9Yq/hRJhl2yVccQgXbWqFcjMtCbI2PvloNWGuu7BuaNUcFzpHRcDJPSKPn4Jq9buHQxvMP9h6ikY2mjN7JZTkW+o0w7Z/oi73ICJtNqXMlahfis1TPwKBgQC8jUWXwPaRyAZKE4tYuSAFhvyhXxgMiSxj2ek3pY25fEZBPvBOKr32artm7r24x0n4/jRMb6q2TvPT3nVPY7dNQRvJnfxkFTZslhplJ2D8Q6HrAU+mnxIhOkumV/EbkffSGFg0ijJ6HIHvISNScGvwJUGai5bhGCaMMWcjlBFGHwKBgHYHT1qKzbLGXFV7HY9jYQu640GlBQ/QC+lEgg6b8Tc/0V+vHguPbExzD6U/LzRuZwWNcOM9nQseTT3AHjvSGPo17EVIAiOpDChtTMEF4/BYtzRZiGFA6mHWYnb5Hlj6TgpwgUsLzy6Jo68SFVMIPTQUDkdx5kJxR40IFiO9+kRNAoGBAITd8Fp9ycL09ymgGCPPYHdEpiV5A1NiHnvGhQeHjBVXM5KqrWAH0pEgqSphtiPNm5zwVR4/2kZZ4Iw+SOBG3lZ8OP6ca8yC/jUKmVMKqtdZOXKHG//IPFhZ4hE4C1loRQAx04ZClEtkZ1OBQIjJW+Z/+njTQOEhyZglAA8cOgf1AoGBAJjxSvMr3K0BSkg9s2efsmwy/BW9khOJ+3OKlLdKz7WnPb7LTdky2SQbUGruT+vlDscCLwnV3YHu1JK3RD0RGciiVOEMit5RzTNpX63JtWrhw+CSA2SeWFlpzF7Vis2M9S1+W0EjWm/HzAhncBDPA2H47SyuWq2Guu9RdsFxJOJX");
-        aliPayConfig.setNotifyUrl("http://www.alipay.com");
-        aliPayConfig.setReturnUrl("http://2509d113.all123.net/aliPayBack");
+        aliPayConfig.setPid("2088331994426085");
+        aliPayConfig.setAppId("2019010562862213");
+        //aliPayConfig.setKeyPublic("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyTbBrE5t/7+gTMj/u93+7GSV+r4UxV+oFiNJWjf0bAs7yATL31F04FTsuS88nHfrLaAHh4Pkyd+PF1yOq5ZmGwdbplBjC3l44civ26QVsx/PmVT/nhvph4O7KF0xrhhFasC9iZ23VJ5l7unwZx+pmoSr1VvuLCB5WVj+7VnRpBMQU2gRseHJ7RvbkCR7LINzReRy8aE1N3UD/XVMAY344MfKFOZXVkTPqHkBT4/Rh/DgQOud9Q8jyZUiHTKLoOjnYGy8YzxLA/LiSjksIbLAAnjk3PwCn9LyTf8nHdOr8MwzgRKi5z4WgJPppzUW3OMtzdsaV3rRBorWcYLzW7kpcwIDAQAB");
+        aliPayConfig.setKeyPublic("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlBbRR+gvqF75c6tUXofOExH2/IQGbJLTyQ3MEHdG7Nj3sBil5oAlXnLCSQhFxT9PBWDLoGCnOuXiy+Jglg5qH91P5mMTMRfVSc25ljBvDT+4l9p9bDFLr87bawRE/oKOlQfwVo3pmsviVZHU+yv9NegYOROtt+ivyukEQlUvDeLR41pLbPSYRAzk49ACPdh9A3j5OWGqbz7z9LJLnmYf59IHTN/4RsNUHHdV0Dgf5xA84u9kaQelraIDZbAL8X8uJj9KofUmdXSRu2qSeOly7sjbv1NmxohC5oaelqThmtJeKDHvaAS/c87X4FHoANX56FVdbDk7ZX7RJqGymVuZQwIDAQAB");
+       // aliPayConfig.setKeyPrivate("MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDp4P1EFIm2TqCIKSC3hH8BhbH61QrlMZkLP+WvhJQYOxmbg/XgiOKLgtyfasA0DoiZNgxoWjmmRwvcXV8G+r2UWLc9zhU1pttZPrljbr03qqwqeiZKRoanM5fxE3XxxVuEARV0iuk+8wtgN3D8k2Qy7YFQJGF18xR84QzgH933fk02PdScbm4W5WBDnd6Nil6MBuTVLE+YzX7/55dHEY33WUdWdgDJZRsPp3ASwG2Q2/4ZRQxFH/wi5ZpgeXbxn7V2Ugz5IKcyXfe8hzDL215tKRiaXW1Uc1TLdhl7ptZGQ6EYeaVhPXiNFECtlOJq+rtzVpxtREvwCAAu6Jd7S9yVAgMBAAECggEAPrgWUzaKw7gMNteIrY47nQXkd9bACDynxSuKheow6NqYgGr/+gnbbvxV++5dwtgO679hzm47vYqZ9KuZez6srmaoJUvpxiyL8D/w6WheF9qONwnw0MRfAeHFImJMo9yAMUM1JL7H1BjLeS8E/sbr/PhSUFKhTEc2vFKB6GzDUsYp4vayKDcb1L642xyrukiHPioZ9LhqbIUlufgiXCnHmQupN6eKDD9XklnWm2SoK1sD1LJNtnfkAQAqahaI3V4K/yBhBSeoERjtHtcdwMd3D6YGNsYTydbbQpGVjtzPAP56hlBcUH6a5BQ4n0UbnP1dwmEhALd2QvNR1J7ht/ZKFQKBgQD2L0amklUWAilnA59KEnfPvy2l4JxLgT0OKQY6tfyVx+mnO1vvz16NTH7XgYMBEtnkqPRfF3Exq5wQSBDy4C1ROqm9IL/jiFcCBh9sLI6X7Ufyr1vY71357nHr0OIzhW3dj5botVj7GkQDKA+PkFjDK0qW/XIPeRulo4ZrzLWw9wKBgQDzNByzUisdNO6VDUgzG1NTZ2esA7/oSUUoyyRcbmmWcvJD7TyQM1K5BzwZxAOAKAWFCwUsl4L4Evt5MeZWxNSMKAgJ2N0GXbrVfuAxOp2TfLthTp6q164yMD/iF2Wm4NvjezWyVOPfZVaPIObcOdZadgE430KSFA3q0rBfDx3H0wKBgDujEDZh1ILUWzs9QWUsPCHzahd45ePUlvnLLlsiouGV4CBG3OqnDXylP0TtdtLXwjkGRMyUXTNvIws+qfxsGg5Ha78JI/L2oD05Rntp/9EGBhvgJxvSQK2++ZHqtCFO/WJi2mfdJoUNw9QP7FUW3qnI3vTcyLi+2deyWWnb2VfZAoGAJsSk2pT7mHFKoun2G2d8tevi49HJMq8TXjhbuHxFSp1SLy/PGrGDu0kC9JyBblly381s6rnQP9lOyvgAXs6LjzgGaANw4EXqtYO/Gznbypn0iMNumY8+DnQQiurt4lcv1iha2+2aUY8m6DP3eR2jJNJwyW8VfpHB0i/5u31+Ys8CgYEA3gYjy77XJsKK7DlnLtohMqgfxW/21nbEDsKXlestGhP7smX8mr/lfuYtdGozyXCIY8oSlVHn0N5pcGYXimSrhwWDgwyIFBh7d4/vzO73AdqLj5ZDQo7SF+H5G29DM3U364K/zWuluQfzvvp1KcacKMN3PwWRsLREylOcD8rad3Q=");
+
+        aliPayConfig.setKeyPrivate("MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCibxqBuDvdJeGm" +
+                "tljjQZQRdrWAmE3rMaI1WoPdG5EDSlOFZmNs4KPQt8Tt5rqB1T6ACYC4ofqAP5n3" +
+                "FqMjTfu0UNJyA9/Q7aui5nYot4y3KEAKgWZ6oZ2a4JZ8cJv69lOzm9om5PwTJvwh" +
+                "mXnfMxfe4zmQSMB96eDSzzE41WW4kukBJw4VFI8RdmxIl1SUgyX4K/g4C86KA1a+" +
+                "9sWRu6GX4swkUkDPq4mzhLLMK3xA7N+eYwfsaroE/bztcINWjOmyL0e1JdTtw+Ln" +
+                "Ll1hN2YgEwwZgea4XchTBL6YzBdhTALPZ4e3d2XFXK2tfYQKE2uO5mZMxz7e5AMz" +
+                "Dw4pnczTAgMBAAECggEAQPEereJUvNQaZabd3u4nHtxRMLqz3GaZra8krVAKKECd" +
+                "J+aJtcwScq4mY98tjh8Nv+8MscTA/GlxSyKX0tOo4Ky3lrIJ1+RODPELKLhJ4CiN" +
+                "giW+LSVUd8l3IQV8t1eom1SiYY6HYbjicSSFX0F0N76tEwyjOTQ6mM4RpeFbq/Ed" +
+                "eEb8xisFA764+CYpu5P845n+LCViQ9idCWr7GdkeHujFQq6aqZbOiwNQrUEOAKqS" +
+                "HSUIs35WrRmSGRvS6AeTDr5WLHfx1cogNHajBBbwhMlmwcVTAposEuJXTTJZlMfl" +
+                "F2jpBzkTypFV+Od31lJdbH+In9inHYY2FgczTU5W4QKBgQDOx+qAufp+g8L+N+YK" +
+                "skBCSL96iHR8dk96edc5zpipK0Dz779kLdDJKZenQIuxSn/qpEQGQpAElx/4oMXT" +
+                "9bHufpIc6s+sCOO+xQMsq3h+m6J14hOhhwcXjl2kc4FVLdh2g4W7SfiypOOjSbot" +
+                "osDiK+NSl5DYbRCE/2eTBGHoOQKBgQDJGO5/RoIWMXjrMapzWe4UP1S2XxuvE+Ov" +
+                "2qqcThE/Wyd/90HGc698+DHApCFuhO3HoFdD3I0/oAE4mQ0hQwMqWYdF2JmXTOjW" +
+                "M0InytmSOcu/ZXyk+x8rWttA/ycC7XZh9X5VSbwbBvEhlPiyAvDgMl3K4vG+uhLs" +
+                "23SVqC2lawKBgQCyzDJ9NFLg6lXFM9h6Dz95ESZgcXUn2bVHlesAVR+zx27Wfsvj" +
+                "d6o9BvXW7PzdRCnvXjJjp1KYZYSDm6DzclN0gYUd8/u2Kcmjvv7LtUjvUOvdOqr2" +
+                "1KbRO4zFEgsW+BlgAMG1/HRLJEChhLKzmzNlXcWmOOBKA6RxG9cXTIbMIQKBgQC9" +
+                "aBUinadi/d/VLmdL1FUwjuHcD8KEaWhXts5hAAqwsMuIdLtoDogoXaCGwFCYxu0q" +
+                "y/PFgBMt7SeZRlaekH6HweFuQO+RGShor8jMr/uzBWrJb+4xejFGZYIDOw9ka4LI" +
+                "CzCdZiCdGDG/no+LIsf7cpTyxkRJjvrKSn0JhGjR1wKBgGQQW/kBLGn0AGPc7vxk" +
+                "khUP9yMzdV7/sIk9fOtilgvQpsjvU3IQckKxPN0GwQQwzEvqwqrVhu5oCmRJl3WI" +
+                "gV8jRQkz4/3VNQ1XKA1Waki03G4bqUyJPLRbqk2G5UtpJmqzVp2MC2UN0fngICaj" +
+                "dTQCEylCdPdEG9Igb8ymNcCs");
+        aliPayConfig.setNotifyUrl("http://vckvvv.natappfree.cc/pay/aliPayCallBack");
+        //aliPayConfig.setReturnUrl("http://vckvvv.natappfree.cc/pay/aliPayCallBack");
         aliPayConfig.setSignType(SignUtils.RSA2.name());
-        aliPayConfig.setSeller("2088102175938099");
+        aliPayConfig.setSeller("2088331994426085");
         aliPayConfig.setInputCharset("utf-8");
         //是否为测试账号，沙箱环境
-        aliPayConfig.setTest(true);
+        aliPayConfig.setTest(false);
         //最大连接数
         httpConfig.setMaxTotal(20);
         //默认的每个路由的最大连接数
@@ -103,12 +131,12 @@ public class PayService {
         aliPayService = new AliPayService(aliPayConfig, httpConfig);
 
         //todo 微信配置文件
-        wxPayConfig.setMchId("1473426802");
-        wxPayConfig.setAppid("wx8397f8696b538317");
-        wxPayConfig.setKeyPublic("T6m9iK73b0kn9g5v426MKfHQH7X8rKwb");
-        wxPayConfig.setSecretKey("T6m9iK73b0kn9g5v426MKfHQH7X8rKwb");
-        wxPayConfig.setNotifyUrl("异步通知地址");
-        wxPayConfig.setReturnUrl("同步通知地址");
+        wxPayConfig.setMchId("1512315091");
+        wxPayConfig.setAppid("wx236c30256bf4f508");
+        //wxPayConfig.setKeyPublic("T6m9iK73b0kn9g5v426MKfHQH7X8rKwb");
+        wxPayConfig.setSecretKey("GUI20180323fashion698700HENANGUI");
+        wxPayConfig.setNotifyUrl("http://vckvvv.natappfree.cc/pay/wxPayCallBack");
+        wxPayConfig.setReturnUrl("http://vckvvv.natappfree.cc/pay/wxPayCallBack");
         wxPayConfig.setSignType(SignUtils.MD5.name());
         wxPayConfig.setInputCharset("utf-8");
         wxPayService = new WxPayService(wxPayConfig);
@@ -289,13 +317,16 @@ public class PayService {
             }
             //校验
             if (aliPayService.verify(params)) {
+                logger.info("支付宝支付回调获取的数据：{}",params);
                 String outTradeNo = (String) params.get("out_trade_no");
                 Bill bill = (Bill) redisService.get(outTradeNo);
                 if (bill != null) {
                     billRepository.save(bill);
                     GoodsOrder goodsOrder = goodsOrderRepository.findById(outTradeNo).get();
                     goodsOrder.setStatus(1);
+                    redisService.del(outTradeNo);
                     //支付完成后  7天没有退换/款  则自动付款给商家
+                    Timer timer = new Timer();
                     timer.schedule(new TimerTask() {
                         @Override
                         public void run() {
@@ -324,11 +355,11 @@ public class PayService {
                             }
                         }
                     }, 10 * 24 * 60 * 60 * 1000);
-                    redisService.del(outTradeNo);
                     return true;
                 }
                 //失败的话 恢复商品数量
-                amqpTemplate.convertAndSend(exchange, errorRouteKey, outTradeNo);
+                logger.info("支付失败，进行rabbitMQ处理");
+                rabbitTemplate.convertAndSend(exchange, errorRouteKey, outTradeNo);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -360,9 +391,9 @@ public class PayService {
         User user = target.getUser();
         StringBuffer requestURL = request.getRequestURL();
         //设置网页地址
-        payOrder.setWapUrl(requestURL.substring(0, requestURL.indexOf("/") > 0 ?
-                requestURL.indexOf("/") : requestURL.length()));
-        payOrder.setWapName("支付");
+//        payOrder.setWapUrl(requestURL.substring(0, requestURL.indexOf("/") > 0 ?
+//                requestURL.indexOf("/") : requestURL.length()));
+//        payOrder.setWapName("支付");
         Map<String, Object> orderInfo = wxPayService.orderInfo(payOrder);
         Bill bill = new Bill();
         bill.setType(0);
@@ -394,7 +425,7 @@ public class PayService {
                     return true;
                 }
                 //失败的话 恢复商品数量
-                amqpTemplate.convertAndSend(exchange, errorRouteKey, outTradeNo);
+                rabbitTemplate.convertAndSend(exchange, errorRouteKey, outTradeNo);
             }
         } catch (Exception e) {
             e.printStackTrace();
