@@ -41,7 +41,8 @@ public class MerchantService {
             merchant.setBusinessLicense(UrlConstant.IMAGE_URL+new FastDfsUtil().uploadBase64Image(base64License));
         }
         merchant.setCreateTime(new Date());
-        merchant.setAuth(false);
+        //merchant.setAuth(false);
+        merchant.setAuth(true);
         merchantRepository.save(merchant);
         return true;
     }

@@ -6,6 +6,7 @@ import com.linghong.fkdp.mapper.ImFriendMapper;
 import com.linghong.fkdp.mapper.ImMsgMapper;
 import com.linghong.fkdp.mapper.ImUserMapper;
 import com.linghong.fkdp.pojo.ImMsg;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -13,7 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
+@Scope(value = "prototype")
 @Service("imMsgServiceImpl")
 public class ImMsgServiceImpl extends ServiceImpl<ImMsgMapper, ImMsg> implements ImMsgService {
     @Resource
@@ -33,22 +34,22 @@ public class ImMsgServiceImpl extends ServiceImpl<ImMsgMapper, ImMsg> implements
     }
 
     @Override
-    public Map<String,Object> getOldMessage(String senderId, String receiverId) {
+    public Map<String, Object> getOldMessage(String senderId, String receiverId) {
         QueryWrapper<ImMsg> wrapper = new QueryWrapper<>();
-        wrapper.eq("senderId", senderId)
-                .eq("receiverId", receiverId)
-                .or()
-                .eq("senderId", receiverId)
-                .eq("receiverId", senderId)
+        wrapper.or(i -> i.eq("sender_id", senderId).eq("receiver_id", receiverId))
+                .or(i ->
+                        i.eq("sender_id", receiverId)
+                                .eq("receiver_id", senderId)
+                )
                 .orderByDesc("create_time");
         List<ImMsg> imMsgs = imMsgMapper.selectList(wrapper);
         int temp = 0;
-        for (ImMsg imMsg : imMsgs){
-            if (imMsg.getStatus().equals(0)){
+        for (ImMsg imMsg : imMsgs) {
+            if (imMsg.getStatus().equals(0)) {
                 temp++;
             }
         }
-        Map<String,Object> result = new HashMap<>();
+        Map<String, Object> result = new HashMap<>();
         result.put("聊天记录", imMsgs);
         result.put("未读记录数量", temp);
         return result;

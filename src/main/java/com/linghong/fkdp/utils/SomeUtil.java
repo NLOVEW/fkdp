@@ -1,6 +1,7 @@
 package com.linghong.fkdp.utils;
 
 import com.alibaba.fastjson.JSON;
+import com.linghong.fkdp.bean.Express;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -60,11 +61,11 @@ public class SomeUtil {
      * @param expressNumber
      * @return
      */
-    public static String getExpress(String expressType,String expressNumber) {
+    public static Express getExpress(String expressType, String expressNumber) {
         Request request = new Request.Builder().get().url("http://www.kuaidi100.com/query?type=" + expressType + "&postid=" + expressNumber).build();
         try {
             Response response = httpClient.newCall(request).execute();
-            return JSON.toJSONString(response.body().string());
+            return JSON.parseObject(response.body().string(),Express.class);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -74,7 +75,8 @@ public class SomeUtil {
 
 
     public static void main(String[] nhb){
-        String phoneNumberMessage = getTelePhoneNumberMessage("13592589109");
-        logger.info(phoneNumberMessage);
+        String result = "{ \"action\":1, \"imMsg\":{ \"msg\":\"\", \"extend\":\"\" \"receiverId\":\"10087\", \"senderId\":\"10086\" } }";
+        result = JSON.toJSONString(result);
+        System.out.println(result);
     }
 }

@@ -1,8 +1,8 @@
 package com.linghong.fkdp.controller;
 
+import com.linghong.fkdp.dto.GoodsExpressMessage;
 import com.linghong.fkdp.dto.Response;
 import com.linghong.fkdp.pojo.BackGoods;
-import com.linghong.fkdp.pojo.GoodsExpress;
 import com.linghong.fkdp.pojo.GoodsOrder;
 import com.linghong.fkdp.service.GoodsOrderService;
 import org.springframework.web.bind.annotation.*;
@@ -42,7 +42,8 @@ public class GoodsOrderController {
         if (goodsOrder != null) {
             return new Response(true, 200, goodsOrder, "成功下单");
         }
-        return new Response(false, 101, null, "暂未通过身份审核");
+        //return new Response(false, 101, null, "暂未通过身份审核");
+        return new Response(false, 101, null, "此商品暂不出售");
     }
 
     /**
@@ -203,7 +204,7 @@ public class GoodsOrderController {
      */
     @GetMapping("/order/getExpressByGoodsOrderId/{goodsOrderId}")
     public Response getExpressByGoodsOrderId(@PathVariable String goodsOrderId) {
-        GoodsExpress goodsExpress = goodsOrderService.getExpressByGoodsOrderId(goodsOrderId);
+        GoodsExpressMessage goodsExpress = goodsOrderService.getExpressByGoodsOrderId(goodsOrderId);
         if (goodsExpress != null) {
             return new Response(true, 200, goodsExpress, "物流详情");
         }

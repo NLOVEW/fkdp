@@ -44,20 +44,20 @@ public class ProtectService {
 
     public boolean deleteAll(){
         try {
-            userRepository.deleteAll();
-            addressRepository.deleteAll();
-            backGoodsRepository.deleteAll();
-            billRepository.deleteAll();
-            goodsExpressRepository.deleteAll();
             goodsImageRepository.deleteAll();
-            goodsOrderRepository.deleteAll();
-            goodsRepository.deleteAll();
             imageRepository.deleteAll();
+            goodsOrderRepository.deleteAll();
+            goodsExpressRepository.deleteAll();
+            backGoodsRepository.deleteAll();
+            goodsRepository.deleteAll();
             linkManRepository.deleteAll();
             merchantRepository.deleteAll();
             messageBackRepository.deleteAll();
-            openUserRepository.deleteAll();
             walletRepository.deleteAll();
+            addressRepository.deleteAll();
+            openUserRepository.deleteAll();
+            billRepository.deleteAll();
+            userRepository.deleteAll();
             return true;
         } catch (Exception e) {
             e.printStackTrace();

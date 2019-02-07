@@ -1,6 +1,8 @@
 package com.linghong.fkdp.service;
 
+import com.linghong.fkdp.bean.Express;
 import com.linghong.fkdp.constant.UrlConstant;
+import com.linghong.fkdp.dto.GoodsExpressMessage;
 import com.linghong.fkdp.pojo.*;
 import com.linghong.fkdp.repository.*;
 import com.linghong.fkdp.utils.FastDfsUtil;
@@ -9,12 +11,13 @@ import com.linghong.fkdp.utils.JwtUtil;
 import com.linghong.fkdp.utils.SomeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.transaction.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,6 +28,7 @@ import java.util.stream.Collectors;
  * @Description:
  */
 @Service
+@Transactional(rollbackOn = Exception.class)
 public class GoodsOrderService {
     private Logger logger = LoggerFactory.getLogger(getClass());
     @Resource
@@ -40,7 +44,9 @@ public class GoodsOrderService {
     @Resource
     private BackGoodsRepository backGoodsRepository;
     @Resource
-    private RabbitTemplate rabbitTemplate;
+    private AmqpTemplate amqpTemplate;
+    @Resource
+    private PayService payService;
 
     @Value("${mq.pay.exchange}")
     private String exchange;
@@ -61,12 +67,14 @@ public class GoodsOrderService {
         }
         Goods goods = goodsRepository.findById(goodsOrder.getGoods().getGoodsId()).get();
         goods.setNumber(goods.getNumber().intValue() - 1);
-        if (goods.getNumber().intValue() <= 0) {
+        if (goods.getNumber().intValue() <= 0 || goods.getStartTime().compareTo(new Date()) >=0 || goods.getEndTime().compareTo(new Date()) <= 0) {
             goods.setObtained(true);
+            return null;
         }
         goodsOrder.setGoods(goods);
         goodsOrder.setUser(user);
         goodsOrder.setStatus(0);
+        goodsOrder.setNumber(1);
         goodsOrder.setCreateTime(new Date());
         goodsOrder.setGoodsOrderId(IDUtil.getOrderId());
         goodsOrder = goodsOrderRepository.save(goodsOrder);
@@ -88,6 +96,7 @@ public class GoodsOrderService {
     }
 
     public List<GoodsOrder> getOrderByStatus(Long userId, Integer status) {
+        logger.info("数据：{},{}", userId,status);
         try {
             List<GoodsOrder> orders = goodsOrderRepository.findAllByUser_UserIdAndStatusOrderByCreateTimeDesc(userId, status);
             orders = orders.stream().filter(order -> {
@@ -120,17 +129,27 @@ public class GoodsOrderService {
         return result;
     }
 
-    public GoodsExpress getExpressByGoodsOrderId(String goodsOrderId) {
+    public GoodsExpressMessage getExpressByGoodsOrderId(String goodsOrderId) {
+        logger.info("查询订单物流：{}",goodsOrderId);
         GoodsOrder goodsOrder = goodsOrderRepository.findById(goodsOrderId).get();
         GoodsExpress goodsExpress = goodsOrder.getGoodsExpress();
+        logger.info("物流信息{}", goodsExpress);
         String expressNumber = goodsExpress.getExpressNumber();
         String expressType = goodsExpress.getExpressType();
         if (expressNumber == null || expressType == null) {
             return null;
         } else {
-            String express = SomeUtil.getExpress(expressType, expressNumber);
-            goodsExpress.setExpressData(express);
-            return goodsExpress;
+            Express express = SomeUtil.getExpress(expressType, expressNumber);
+            logger.info("查询的物流：{}", express.toString());
+            GoodsExpressMessage expressMessage = new GoodsExpressMessage();
+            expressMessage.setAddress(goodsExpress.getAddress());
+            expressMessage.setCreateTime(goodsExpress.getCreateTime());
+            expressMessage.setExpressData(express);
+            expressMessage.setExpressType(goodsExpress.getExpressType());
+            expressMessage.setGoodsExpressId(goodsExpress.getGoodsExpressId());
+            expressMessage.setExpressNumber(goodsExpress.getExpressNumber());
+            logger.info("物流新的---信息{}", expressMessage.toString());
+            return expressMessage;
         }
     }
 
@@ -198,7 +217,8 @@ public class GoodsOrderService {
                 order.getBackGoods().setBackStatus(status);
             } else {
                 //处理方法 com.linghong.fkdp.service.PayService.backOrderTransfer
-                rabbitTemplate.convertAndSend(exchange, backRouteKey, orderId);
+                //amqpTemplate.convertAndSend(exchange, backRouteKey, orderId);
+                payService.backOrderTransfer(orderId);
             }
         }
         order.getBackGoods().setBackStatus(status);
@@ -211,7 +231,9 @@ public class GoodsOrderService {
      * @see com.linghong.fkdp.service.PayService#sureOrder(java.lang.String)
      */
     public boolean surePickUp(String orderId) {
-        rabbitTemplate.convertAndSend(exchange, sureRouteKey, orderId);
+        logger.info("确定收货Id:{}", orderId);
+        //amqpTemplate.convertAndSend(exchange, sureRouteKey, orderId);
+        payService.sureOrder(orderId);
         return true;
     }
 

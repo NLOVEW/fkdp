@@ -42,4 +42,14 @@ public class ExpressData implements Serializable {
     public void setContext(String context) {
         this.context = context;
     }
+
+    @Override
+    public String toString() {
+        return "ExpressData{" +
+                "time='" + time + '\'' +
+                ", ftime='" + ftime + '\'' +
+                ", location='" + location + '\'' +
+                ", context='" + context + '\'' +
+                '}';
+    }
 }

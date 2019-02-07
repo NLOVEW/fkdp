@@ -29,7 +29,6 @@ import java.util.List;
  */
 public class ImHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 	private Logger logger = LoggerFactory.getLogger(getClass());
-
 	// 用于记录和管理所有客户端的channel
 	public static ChannelGroup users =
 			new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
@@ -70,6 +69,7 @@ public class ImHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 				Channel channel = users.find(receiverChannel.id());
 				if (channel != null){//在线的话直接推送信息
 					DataContent sendMsg = new DataContent();
+					sendMsg.setAction(5);
 					sendMsg.setImMsg(imMsg);
 					channel.writeAndFlush(new TextWebSocketFrame(JSON.toJSONString(sendMsg)));
 					//设置消息已读
@@ -111,6 +111,14 @@ public class ImHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
 	@Override
 	public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
 		users.add(ctx.channel());
+		ctx.channel().writeAndFlush(new TextWebSocketFrame("您已连接webSocket,请先发送action为1的指令"));
+		logger.info("向客户端发送连接通知");
+	}
+
+	@Override
+	public void channelActive(ChannelHandlerContext ctx) throws Exception {
+		ctx.channel().writeAndFlush(new TextWebSocketFrame("您已连接webSocket,请先发送action为1的指令"));
+		logger.info("向客户端发送连接通知");
 	}
 
 	@Override

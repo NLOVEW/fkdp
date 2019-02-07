@@ -10,9 +10,6 @@ import com.linghong.fkdp.utils.JwtUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.ExchangeTypes;
-import org.springframework.amqp.rabbit.annotation.*;
-import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -55,11 +52,11 @@ public class GoodsService {
     @Resource
     private GoodsImageRepository goodsImageRepository;
 
-    @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(value = "${mq.pay.error.queue}", autoDelete = "false"),
-            exchange = @Exchange(name = "${mq.pay.exchange}", type = ExchangeTypes.DIRECT),
-            key = "${mq.pay.error.routeKey}"
-    ))
+//    @RabbitListener(bindings = @QueueBinding(
+//            value = @Queue(value = "${mq.pay.error.queue}", autoDelete = "false"),
+//            exchange = @Exchange(name = "${mq.pay.exchange}", type = ExchangeTypes.DIRECT),
+//            key = "${mq.pay.error.routeKey}"
+//    ))
     public void dealErrorOrder(String goodsOrderId) {
         logger.info("rabbitMQ：dealErrorOrder 处理");
         GoodsOrder goodsOrder = goodsOrderRepository.findById(goodsOrderId).get();
@@ -109,7 +106,7 @@ public class GoodsService {
                 //在开始时间  以20S减价一次
                 Goods target = goodsRepository.findById(id).get();
                 //到达结束竞拍时间  停止任务
-                if (target.getEndTime().compareTo(new Date(System.currentTimeMillis())) <= 0 || target.getUpdateTime() != null || target.getObtained() || target.getNowPrice().compareTo(new BigDecimal(0)) <= 0) {
+                if (target.getEndTime().compareTo(new Date(System.currentTimeMillis())) <= 0 || target.getSmallPrice().compareTo(target.getNowPrice()) >= 0 || target.getObtained() || target.getNowPrice().compareTo(new BigDecimal(0)) <= 0) {
                     target.setUpdateTime(null);
                     target.setObtained(true);
                     goodsRepository.save(target);
@@ -202,6 +199,12 @@ public class GoodsService {
 
     public List<Goods> findGoodsByUserId(Long userId) {
         List<Goods> goods = goodsRepository.findAllByMerchant_User_UserId(userId);
+        goods.stream().filter(goods1 -> {
+            if (goods1.getObtained()){
+                return false;
+            }
+            return true;
+        }).collect(Collectors.toList());
         return goods;
     }
 
@@ -242,7 +245,7 @@ public class GoodsService {
             List<Goods> goods = goodsRepository.findAll(specification)
                     .stream()
                     .filter(goods1 -> {
-                        if (goods1.getNumber().intValue() > 0 && !goods1.getObtained() && goods1.getMerchant().getAddress().contains(decodeCity)) {
+                        if (goods1.getNumber().intValue() > 0 && !goods1.getObtained() && goods1.getMerchant().getCity().contains(decodeCity)) {
                             return true;
                         }
                         return false;
@@ -289,7 +292,7 @@ public class GoodsService {
             List<Goods> goods = goodsRepository.findAll(specification)
                     .stream()
                     .filter(goods1 -> {
-                        if (goods1.getNumber().intValue() > 0 && !goods1.getObtained() && goods1.getMerchant().getAddress().contains(decodeCity)) {
+                        if (goods1.getNumber().intValue() > 0 && !goods1.getObtained() && goods1.getMerchant().getCity().contains(decodeCity)) {
                             return true;
                         }
                         return false;
@@ -327,7 +330,7 @@ public class GoodsService {
         return null;
     }
 
-    @Scheduled(cron = "0 */5 * * * ? ")
+    @Scheduled(cron = "*/10 * * * * ? ")
     public void dealGoodsTime() {
         logger.info("启动定时清理过期数据");
         List<Goods> goods = goodsRepository.findAll();

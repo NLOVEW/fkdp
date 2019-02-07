@@ -19,11 +19,6 @@ import com.nhb.pay.wxpay.WxPayService;
 import com.nhb.pay.wxpay.WxTransactionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.ExchangeTypes;
-import org.springframework.amqp.rabbit.annotation.Exchange;
-import org.springframework.amqp.rabbit.annotation.Queue;
-import org.springframework.amqp.rabbit.annotation.QueueBinding;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
@@ -71,6 +66,8 @@ public class PayService {
     private RabbitTemplate rabbitTemplate;
     @Resource
     private LinkManRepository linkManRepository;
+    @Resource
+    private GoodsService goodsService;
 
     @Value("${mq.pay.exchange}")
     private String exchange;
@@ -117,7 +114,7 @@ public class PayService {
                 "khUP9yMzdV7/sIk9fOtilgvQpsjvU3IQckKxPN0GwQQwzEvqwqrVhu5oCmRJl3WI" +
                 "gV8jRQkz4/3VNQ1XKA1Waki03G4bqUyJPLRbqk2G5UtpJmqzVp2MC2UN0fngICaj" +
                 "dTQCEylCdPdEG9Igb8ymNcCs");
-        aliPayConfig.setNotifyUrl("http://vckvvv.natappfree.cc/pay/aliPayCallBack");
+        aliPayConfig.setNotifyUrl("http://39.104.127.252:8181/fkdp/pay/aliPayCallBack");
         //aliPayConfig.setReturnUrl("http://vckvvv.natappfree.cc/pay/aliPayCallBack");
         aliPayConfig.setSignType(SignUtils.RSA2.name());
         aliPayConfig.setSeller("2088331994426085");
@@ -324,6 +321,7 @@ public class PayService {
                     billRepository.save(bill);
                     GoodsOrder goodsOrder = goodsOrderRepository.findById(outTradeNo).get();
                     goodsOrder.setStatus(1);
+                    logger.info("支付完成", goodsOrder.getGoodsOrderId());
                     redisService.del(outTradeNo);
                     //支付完成后  7天没有退换/款  则自动付款给商家
                     Timer timer = new Timer();
@@ -359,7 +357,8 @@ public class PayService {
                 }
                 //失败的话 恢复商品数量
                 logger.info("支付失败，进行rabbitMQ处理");
-                rabbitTemplate.convertAndSend(exchange, errorRouteKey, outTradeNo);
+                //rabbitTemplate.convertAndSend(exchange, errorRouteKey, outTradeNo);
+                goodsService.dealErrorOrder(outTradeNo);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -425,7 +424,8 @@ public class PayService {
                     return true;
                 }
                 //失败的话 恢复商品数量
-                rabbitTemplate.convertAndSend(exchange, errorRouteKey, outTradeNo);
+               // rabbitTemplate.convertAndSend(exchange, errorRouteKey, outTradeNo);
+                goodsService.dealErrorOrder(outTradeNo);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -434,11 +434,11 @@ public class PayService {
     }
 
 
-    @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(value = "${mq.pay.back.queue}", autoDelete = "false"),
-            exchange = @Exchange(name = "${mq.pay.exchange}", type = ExchangeTypes.DIRECT),
-            key = "${mq.pay.back.routeKey}"
-    ))
+//    @RabbitListener(bindings = @QueueBinding(
+//            value = @Queue(value = "${mq.pay.back.queue}", autoDelete = "false"),
+//            exchange = @Exchange(name = "${mq.pay.exchange}", type = ExchangeTypes.DIRECT),
+//            key = "${mq.pay.back.routeKey}"
+//    ))
     public void backOrderTransfer(String orderId) {
         GoodsOrder order = goodsOrderRepository.findById(orderId).get();
         TransferOrder transferOrder = new TransferOrder();
@@ -459,13 +459,15 @@ public class PayService {
         }
     }
 
-    @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(value = "${mq.pay.sure.queue}", autoDelete = "false"),
-            exchange = @Exchange(name = "${mq.pay.exchange}", type = ExchangeTypes.DIRECT),
-            key = "${mq.pay.sure.routeKey}"
-    ))
+//    @RabbitListener(bindings = @QueueBinding(
+//            value = @Queue(value = "${mq.pay.sure.queue}", autoDelete = "false"),
+//            exchange = @Exchange(name = "${mq.pay.exchange}", type = ExchangeTypes.DIRECT),
+//            key = "${mq.pay.sure.routeKey}"
+//    ))
     public void sureOrder(String orderId) {
+        logger.info("确定收货订单{}",orderId);
         GoodsOrder order = goodsOrderRepository.findById(orderId).get();
+        logger.info("-------------------------------------------------------------");
         TransferOrder transferOrder = new TransferOrder();
         transferOrder.setPayeeAccount(order.getGoods().getMerchant().getUser().getMobilePhone());
         transferOrder.setOutNo(IDUtil.getOrderId());
@@ -482,5 +484,6 @@ public class PayService {
             bill.setIntroduce("退款到支付宝账号：" + order.getGoods().getMerchant().getUser().getMobilePhone() + "   " + bill.getPrice() + " 元");
             billRepository.save(bill);
         }
+        order.setStatus(3);
     }
 }

@@ -17,7 +17,7 @@ public class GoodsExpress implements Serializable {
     private Address address;//收货人信息
     private String expressType;//快递公司
     private String expressNumber;//快递单号
-    private String expressData;//详细物流信息(此信息存数据库)
+    //private String expressData;//详细物流信息(此信息存数据库)
     private Date createTime;
 
     @Id
@@ -30,13 +30,13 @@ public class GoodsExpress implements Serializable {
         this.goodsExpressId = goodsExpressId;
     }
 
-    public String getExpressData() {
-        return expressData;
-    }
-
-    public void setExpressData(String expressData) {
-        this.expressData = expressData;
-    }
+//    public String getExpressData() {
+//        return expressData;
+//    }
+//
+//    public void setExpressData(String expressData) {
+//        this.expressData = expressData;
+//    }
 
     public String getExpressType() {
         return expressType;

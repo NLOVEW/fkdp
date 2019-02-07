@@ -3,6 +3,7 @@ package com.linghong.fkdp.controller;
 import com.linghong.fkdp.dto.Response;
 import com.linghong.fkdp.pojo.Goods;
 import com.linghong.fkdp.service.GoodsService;
+import com.linghong.fkdp.utils.ExpressTypeUtil;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -119,6 +120,17 @@ public class GoodsController {
     public Response getAuctionIndex(@PathVariable String goodsId){
         Map<String,Object> result = goodsService.getAuctionIndex(goodsId);
         return new Response(true,200 ,result ,"查询结果" );
+    }
+
+    //todo -------------物流接口-------------------
+
+    /**
+     * 获取物流公司
+     * @return
+     */
+    @GetMapping("/goods/getExpressType")
+    public Response getExpressType(){
+        return new Response(true,200, ExpressTypeUtil.getExpressType(),"物流公司");
     }
 
     //todo  -------------------检索商品--------------------------------------

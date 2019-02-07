@@ -79,4 +79,18 @@ public class Express implements Serializable {
     public void setData(List<ExpressData> data) {
         this.data = data;
     }
+
+    @Override
+    public String toString() {
+        return "Express{" +
+                "message='" + message + '\'' +
+                ", status='" + status + '\'' +
+                ", state='" + state + '\'' +
+                ", nu='" + nu + '\'' +
+                ", ischeck='" + ischeck + '\'' +
+                ", condition='" + condition + '\'' +
+                ", com='" + com + '\'' +
+                ", data=" + data +
+                '}';
+    }
 }

@@ -202,7 +202,7 @@ public class ShiroConfig {
         urls.put("/goods/addGoods", "authc");
         urls.put("/goods/updateGoods", "authc");
         urls.put("/goods/deleteGoods/*", "authc");
-        urls.put("/order/*", "authc");
+        //urls.put("/order/*", "authc");
         urls.put("/pay/aliPay", "authc");
         urls.put("/pay/wxPay", "authc");
         urls.put("/pay/getBills/*", "authc");

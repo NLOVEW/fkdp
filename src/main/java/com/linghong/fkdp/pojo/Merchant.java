@@ -18,6 +18,7 @@ public class Merchant implements Serializable {
     private String merchantName;
     private String mobilePhone;
     private String address;
+    private String city;
     private String businessLicense;
     private Boolean auth;
     private Date createTime;
@@ -90,6 +91,14 @@ public class Merchant implements Serializable {
         this.createTime = createTime;
     }
 
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
     @Override
     public String toString() {
         return "Merchant{" +
@@ -98,6 +107,7 @@ public class Merchant implements Serializable {
                 ", merchantName='" + merchantName + '\'' +
                 ", mobilePhone='" + mobilePhone + '\'' +
                 ", address='" + address + '\'' +
+                ", city='" + city + '\'' +
                 ", businessLicense='" + businessLicense + '\'' +
                 ", auth=" + auth +
                 ", createTime=" + createTime +

@@ -21,7 +21,7 @@ public class IMLoader implements ApplicationListener<ContextRefreshedEvent> {
     public void onApplicationEvent(ContextRefreshedEvent contextRefreshedEvent) {
         try {
             if (contextRefreshedEvent.getApplicationContext().getParent() == null){
-                ImServer.getInstance().start(9696);
+                ImServer.getInstance().start(9797);
             }
         } catch (Exception e) {
             e.printStackTrace();

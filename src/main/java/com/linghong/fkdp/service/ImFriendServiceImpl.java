@@ -7,6 +7,7 @@ import com.linghong.fkdp.mapper.ImUserMapper;
 import com.linghong.fkdp.pojo.ImFriend;
 import com.linghong.fkdp.pojo.ImUser;
 import com.linghong.fkdp.utils.IDUtil;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+@Scope(value = "prototype")
 @Service("imFriendServiceImpl")
 public class ImFriendServiceImpl extends ServiceImpl<ImFriendMapper, ImFriend> implements ImFriendService {
     @Resource
